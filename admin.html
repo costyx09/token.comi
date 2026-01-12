@@ -11,7 +11,14 @@
 <div class="app">
   <header>
     <h1>Pannello Admin</h1>
+    <button id="logoutBtn" class="logout-btn">Esci</button>
   </header>
+
+  <div class="admin-actions">
+    <button onclick="window.location.href='genera-qr.html'" class="btn-qr">
+      📱 Genera QR Code
+    </button>
+  </div>
 
   <div id="listaStudenti" class="lista-studenti">
     <div class="loading-admin">Caricamento studenti...</div>
@@ -43,7 +50,31 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
+  // 🔒 PROTEZIONE: Verifica se l'admin è loggato
+  const adminID = localStorage.getItem("studenteID");
+  const isAdmin = localStorage.getItem("isAdmin");
+  
+  if (!adminID || isAdmin !== "true") {
+    alert("⚠️ Accesso negato. Solo per admin.");
+    window.location.href = "login.html";
+  }
+
   const listaStudenti = document.getElementById("listaStudenti");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  // Logout
+  function logout() {
+    localStorage.removeItem("studenteID");
+    localStorage.removeItem("studenteNome");
+    localStorage.removeItem("isAdmin");
+    window.location.href = "login.html";
+  }
+
+  logoutBtn.addEventListener("click", () => {
+    if (confirm("Vuoi davvero uscire?")) {
+      logout();
+    }
+  });
 
   // Funzione per caricare tutti gli studenti
   async function caricaStudenti() {
