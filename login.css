@@ -124,6 +124,53 @@ body {
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
 }
 
+/* Selezione tipo utente */
+.user-type {
+  display: flex;
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.radio-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.radio-option:hover {
+  border-color: #cbd5e1;
+  background: white;
+}
+
+.radio-option input[type="radio"] {
+  display: none;
+}
+
+.radio-option input[type="radio"]:checked + span {
+  color: #2563eb;
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.radio-option span {
+  font-size: 1rem;
+  transition: color 0.3s ease;
+}
+
 /* Testo piccolo */
 .login-card small {
   text-align: center;
