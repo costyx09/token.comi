@@ -3,18 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login Studente</title>
-  <!-- Collega il CSS -->
+  <title>Login</title>
   <link rel="stylesheet" href="login.css">
 </head>
 <body>
 
   <div class="login-card">
-    <h2>Login Studente</h2>
+    <h2>Accedi al Sistema</h2>
 
     <!-- INPUT USERNAME E PASSWORD -->
     <input id="username" placeholder="Username">
     <input id="password" type="password" placeholder="Password">
+
+    <!-- SELEZIONE TIPO UTENTE -->
+    <div class="user-type">
+      <label class="radio-option">
+        <input type="radio" name="userType" value="studente" checked>
+        <span>👨‍🎓 Studente</span>
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="userType" value="admin">
+        <span>👨‍💼 Admin</span>
+      </label>
+    </div>
 
     <!-- BOTTONE ACCEDI -->
     <button id="loginBtn">Accedi</button>
@@ -22,7 +33,6 @@
     <small>Inserisci le credenziali fornite dall'amministratore</small>
   </div>
 
-  <!-- SCRIPT alla fine, così gli elementi esistono -->
   <script type="module" src="login.js"></script>
 </body>
 </html>
