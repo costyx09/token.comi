@@ -67,7 +67,6 @@ header h1 {
 }
 
 header::after {
-  content: 'Il tuo saldo';
   display: block;
   font-size: 1.3rem;
   opacity: 0.95;
@@ -3538,3 +3537,4 @@ body:has(.lista-studenti) header::after {
     font-size: 1.8rem;
   }
 }
+
