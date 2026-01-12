@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Pannello Admin</h1>
+  </header>
+
+  <div id="listaStudenti" class="lista-studenti">
+    <div class="loading-admin">Caricamento studenti...</div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    collection,
+    getDocs,
+    doc,
+    updateDoc,
+    addDoc,
+    query,
+    where
+  } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEN54mTu8CdsWoWvw0sP6xAfL2NRlAN9M",
+    authDomain: "assemblea-token.firebaseapp.com",
+    projectId: "assemblea-token",
+    storageBucket: "assemblea-token.firebasestorage.app",
+    messagingSenderId: "682305266240",
+    appId: "1:682305266240:web:30a93bb05c10d1a2aeb5a5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const listaStudenti = document.getElementById("listaStudenti");
+
+  // Funzione per caricare tutti gli studenti
+  async function caricaStudenti() {
+    try {
+      listaStudenti.innerHTML = '<div class="loading-admin">Caricamento...</div>';
+
+      const q = query(collection(db, "studenti"), where("attivo", "==", true));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        listaStudenti.innerHTML = '<div class="no-data">Nessuno studente trovato</div>';
+        return;
+      }
+
+      listaStudenti.innerHTML = '';
+
+      snapshot.forEach(docSnap => {
+        const studenteID = docSnap.id;
+        const data = docSnap.data();
+
+        const card = document.createElement("div");
+        card.className = "studente";
+        card.innerHTML = `
+          <div>
+            <strong>${data.nome || 'Nome non disponibile'}</strong>
+            <small>${data.classe || 'N/A'}</small>
+          </div>
+          <div class="azioni">
+            <span class="token-count">${data.token || 0}</span>
+            <button class="btn-add" data-id="${studenteID}">+4</button>
+            <button class="btn-remove" data-id="${studenteID}">-1</button>
+          </div>
+        `;
+
+        listaStudenti.appendChild(card);
+      });
+
+      // Aggiungi event listener ai bottoni
+      document.querySelectorAll('.btn-add').forEach(btn => {
+        btn.addEventListener('click', () => aggiungiToken(btn.dataset.id, 4));
+      });
+
+      document.querySelectorAll('.btn-remove').forEach(btn => {
+        btn.addEventListener('click', () => rimuoviToken(btn.dataset.id, 1));
+      });
+
+    } catch (error) {
+      console.error("Errore caricamento studenti:", error);
+      listaStudenti.innerHTML = '<div class="error-admin">❌ Errore di caricamento</div>';
+    }
+  }
+
+  // Funzione per aggiungere token
+  async function aggiungiToken(studenteID, quantita) {
+    try {
+      const ref = doc(db, "studenti", studenteID);
+      const snap = await getDocs(query(collection(db, "studenti"), where("__name__", "==", studenteID)));
+      
+      if (snap.empty) {
+        alert("❌ Studente non trovato");
+        return;
+      }
+
+      const currentToken = snap.docs[0].data().token || 0;
+      const newToken = currentToken + quantita;
+
+      await updateDoc(ref, { token: newToken });
+
+      // Aggiungi transazione
+      await addDoc(collection(db, "transazioni"), {
+        studente: studenteID,
+        descrizione: "Quota Assemblea",
+        variazione: quantita,
+        timestamp: new Date()
+      });
+
+      // Ricarica la lista
+      caricaStudenti();
+      
+      alert(`✅ +${quantita} token aggiunti!`);
+
+    } catch (error) {
+      console.error("Errore aggiunta token:", error);
+      alert("❌ Errore durante l'operazione");
+    }
+  }
+
+  // Funzione per rimuovere token
+  async function rimuoviToken(studenteID, quantita) {
+    try {
+      const ref = doc(db, "studenti", studenteID);
+      const snap = await getDocs(query(collection(db, "studenti"), where("__name__", "==", studenteID)));
+      
+      if (snap.empty) {
+        alert("❌ Studente non trovato");
+        return;
+      }
+
+      const currentToken = snap.docs[0].data().token || 0;
+      
+      if (currentToken < quantita) {
+        alert("❌ Token insufficienti");
+        return;
+      }
+
+      const newToken = currentToken - quantita;
+
+      await updateDoc(ref, { token: newToken });
+
+      // Aggiungi transazione
+      await addDoc(collection(db, "transazioni"), {
+        studente: studenteID,
+        descrizione: "Rimosso dall'admin",
+        variazione: -quantita,
+        timestamp: new Date()
+      });
+
+      // Ricarica la lista
+      caricaStudenti();
+      
+      alert(`✅ -${quantita} token rimosso!`);
+
+    } catch (error) {
+      console.error("Errore rimozione token:", error);
+      alert("❌ Errore durante l'operazione");
+    }
+  }
+
+  // Carica gli studenti all'avvio
+  caricaStudenti();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,850 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.app {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  min-height: 800px;
+  position: relative;
+  padding-bottom: 80px;
+}
+
+/* Header con gradiente blu */
+header {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #06b6d4 100%);
+  padding: 60px 30px 60px 30px;
+  text-align: center;
+  color: white;
+  border-radius: 0 0 50px 50px;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+}
+
+header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+/* Bottone Logout */
+.logout-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 20px;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+header::after {
+  content: 'Il tuo saldo';
+  display: block;
+  font-size: 1.3rem;
+  opacity: 0.95;
+  font-weight: 400;
+  margin-top: 8px;
+}
+
+/* Token Card - Badge circolare */
+.token-card {
+  width: 180px;
+  height: 180px;
+  background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #6366f1 100%);
+  border-radius: 50%;
+  margin: -90px auto 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+  border: 8px solid white;
+  position: relative;
+  z-index: 10;
+}
+
+.token-card p {
+  display: none;
+}
+
+.token-card h2 {
+  font-size: 5rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.token-card::after {
+  content: 'TOKEN';
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: 3px;
+}
+
+/* Pulsante Scansiona QR */
+#scanBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(90deg, #34d399 0%, #14b8a6 100%);
+  color: white;
+  border: none;
+  padding: 22px 30px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-radius: 25px;
+  cursor: pointer;
+  margin: 40px 30px 30px;
+  width: calc(100% - 60px);
+  box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+#scanBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(52, 211, 153, 0.4);
+}
+
+#scanBtn:active {
+  transform: translateY(0);
+}
+
+#scanBtn::before {
+  content: '📱';
+  font-size: 2.5rem;
+  margin-right: 15px;
+  background: white;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#scanBtn::after {
+  content: 'Usa 1 Token';
+  position: absolute;
+  bottom: 5px;
+  left: 83px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* Storico Transazioni */
+.storico {
+  padding: 0 30px 30px;
+}
+
+.storico h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 20px;
+}
+
+.storico ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.storico li {
+  background: #f8fafc;
+  padding: 18px 20px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
+  font-size: 1rem;
+  color: #64748b;
+}
+
+.storico li.loading {
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.storico li span {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.storico li.positivo span {
+  color: #10b981;
+}
+
+.storico li small {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.storico li::before {
+  content: '−';
+  position: absolute;
+  left: -50px;
+  width: 48px;
+  height: 48px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.storico li::after {
+  content: attr(data-time);
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* Aggiungi classe per transazioni positive */
+.storico li.positivo::before {
+  content: '+';
+  background: #10b981;
+}
+
+/* ========== STILI ADMIN ========== */
+
+/* Header admin - stesso gradiente blu della pagina studente */
+body:has(.studente) header {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #06b6d4 100%);
+  padding: 60px 30px 60px 30px;
+}
+
+body:has(.studente) header::after {
+  content: 'Gestisci studenti';
+  font-size: 1.1rem;
+}
+
+/* Card studente */
+.studente {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  margin: 30px;
+  padding: 25px;
+  border-radius: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  border: 2px solid #e2e8f0;
+}
+
+.studente > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.studente strong {
+  font-size: 1.4rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.studente small {
+  font-size: 1rem;
+  color: #64748b;
+  font-weight: 500;
+  background: #e0e7ff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+/* Azioni admin */
+.azioni {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+#adminToken {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #6366f1;
+  min-width: 60px;
+  text-align: center;
+}
+
+#addToken {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#addToken:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+}
+
+#addToken:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .app {
+    border-radius: 30px;
+    min-height: 100vh;
+  }
+  
+  header h1 {
+    font-size: 2rem;
+  }
+  
+  .token-card {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .token-card h2 {
+    font-size: 4rem;
+  }
+  
+  #scanBtn {
+    font-size: 1.3rem;
+  }
+  
+  .studente {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+  
+  .studente > div:first-child {
+    align-items: center;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.app {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  min-height: 800px;
+  position: relative;
+  padding-bottom: 80px;
+}
+
+/* Header con gradiente blu */
+header {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #06b6d4 100%);
+  padding: 60px 30px 60px 30px;
+  text-align: center;
+  color: white;
+  border-radius: 0 0 50px 50px;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+}
+
+header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+/* Bottone Logout */
+.logout-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 20px;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+header::after {
+  content: 'Il tuo saldo';
+  display: block;
+  font-size: 1.3rem;
+  opacity: 0.95;
+  font-weight: 400;
+  margin-top: 8px;
+}
+
+/* Token Card - Badge circolare */
+.token-card {
+  width: 180px;
+  height: 180px;
+  background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #6366f1 100%);
+  border-radius: 50%;
+  margin: -90px auto 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+  border: 8px solid white;
+  position: relative;
+  z-index: 10;
+}
+
+.token-card p {
+  display: none;
+}
+
+.token-card h2 {
+  font-size: 5rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.token-card::after {
+  content: 'TOKEN';
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: 3px;
+}
+
+/* Pulsante Scansiona QR */
+#scanBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(90deg, #34d399 0%, #14b8a6 100%);
+  color: white;
+  border: none;
+  padding: 22px 30px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-radius: 25px;
+  cursor: pointer;
+  margin: 40px 30px 30px;
+  width: calc(100% - 60px);
+  box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+#scanBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(52, 211, 153, 0.4);
+}
+
+#scanBtn:active {
+  transform: translateY(0);
+}
+
+#scanBtn::before {
+  content: '📱';
+  font-size: 2.5rem;
+  margin-right: 15px;
+  background: white;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#scanBtn::after {
+  content: 'Usa 1 Token';
+  position: absolute;
+  bottom: 5px;
+  left: 83px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* Storico Transazioni */
+.storico {
+  padding: 0 30px 30px;
+}
+
+.storico h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 20px;
+}
+
+.storico ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.storico li {
+  background: #f8fafc;
+  padding: 18px 20px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
+  font-size: 1rem;
+  color: #64748b;
+}
+
+.storico li.loading {
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.storico li span {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.storico li.positivo span {
+  color: #10b981;
+}
+
+.storico li small {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.storico li::before {
+  content: '−';
+  position: absolute;
+  left: -50px;
+  width: 48px;
+  height: 48px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.storico li::after {
+  content: attr(data-time);
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* Aggiungi classe per transazioni positive */
+.storico li.positivo::before {
+  content: '+';
+  background: #10b981;
+}
+
+/* ========== STILI ADMIN ========== */
+
+/* Header admin - stesso gradiente blu della pagina studente */
+body:has(.studente) header,
+body:has(.lista-studenti) header {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #06b6d4 100%);
+  padding: 60px 30px 60px 30px;
+}
+
+body:has(.studente) header::after,
+body:has(.lista-studenti) header::after {
+  content: 'Gestisci studenti';
+  font-size: 1.1rem;
+}
+
+/* Lista studenti */
+.lista-studenti {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.loading-admin,
+.no-data,
+.error-admin {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+.error-admin {
+  color: #ef4444;
+}
+
+/* Card studente */
+.studente {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 20px 25px;
+  border-radius: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.studente:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.12);
+}
+
+.studente > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.studente strong {
+  font-size: 1.3rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.studente small {
+  font-size: 0.95rem;
+  color: #64748b;
+  font-weight: 500;
+  background: #e0e7ff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+/* Azioni admin */
+.azioni {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.token-count {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #6366f1;
+  min-width: 50px;
+  text-align: center;
+}
+
+.btn-add,
+.btn-remove {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-remove {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
+}
+
+.btn-add:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-remove:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.4);
+}
+
+.btn-add:active,
+.btn-remove:active {
+  transform: translateY(0) scale(0.95);
+}
+
+#adminToken {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #6366f1;
+  min-width: 60px;
+  text-align: center;
+}
+
+#addToken {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#addToken:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+}
+
+#addToken:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .app {
+    border-radius: 30px;
+    min-height: 100vh;
+  }
+  
+  header h1 {
+    font-size: 2rem;
+  }
+  
+  .logout-btn {
+    top: 15px;
+    right: 15px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+  }
+  
+  .token-card {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .token-card h2 {
+    font-size: 4rem;
+  }
+  
+  #scanBtn {
+    font-size: 1.3rem;
+  }
+  
+  .studente {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .studente > div:first-child {
+    align-items: center;
+  }
+  
+  .azioni {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .btn-add,
+  .btn-remove {
+    width: 45px;
+    height: 45px;
+    font-size: 1.3rem;
+  }
+  
+  .token-count {
+    font-size: 1.8rem;
+  }
+}

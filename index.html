@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Studente</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1 id="nomeStudente">La tua Dashboard</h1>
+    <button id="logoutBtn" class="logout-btn">Esci</button>
+  </header>
+
+  <div class="token-card">
+    <p>Token disponibili</p>
+    <h2 id="token">0</h2>
+  </div>
+
+  <button id="scanBtn">Scansiona QR</button>
+
+  <div class="storico">
+    <h3>Storico Transazioni</h3>
+    <ul id="listaStorico">
+      <li class="loading">Caricamento...</li>
+    </ul>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    doc, 
+    getDoc, 
+    updateDoc,
+    collection,
+    addDoc,
+    query,
+    where,
+    orderBy,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEN54mTu8CdsWoWvw0sP6xAfL2NRlAN9M",
+    authDomain: "assemblea-token.firebaseapp.com",
+    projectId: "assemblea-token",
+    storageBucket: "assemblea-token.firebasestorage.app",
+    messagingSenderId: "682305266240",
+    appId: "1:682305266240:web:30a93bb05c10d1a2aeb5a5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 🔒 PROTEZIONE: Verifica se l'utente è loggato
+  const studenteID = localStorage.getItem("studenteID");
+  if (!studenteID) {
+    alert("⚠️ Devi effettuare il login");
+    window.location.href = "login.html";
+  }
+
+  const tokenSpan = document.getElementById("token");
+  const scanBtn = document.getElementById("scanBtn");
+  const storico = document.getElementById("listaStorico");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const nomeStudente = document.getElementById("nomeStudente");
+
+  // Carica il nome dello studente
+  const nomeStorage = localStorage.getItem("studenteNome");
+  if (nomeStorage) {
+    nomeStudente.textContent = `Ciao ${nomeStorage}!`;
+  }
+
+  // Funzione per caricare i token
+  async function caricaToken() {
+    try {
+      const ref = doc(db, "studenti", studenteID);
+      const snap = await getDoc(ref);
+      
+      if (snap.exists()) {
+        tokenSpan.textContent = snap.data().token || 0;
+      } else {
+        alert("❌ Studente non trovato");
+        logout();
+      }
+    } catch (error) {
+      console.error("Errore caricamento token:", error);
+      alert("❌ Errore di connessione");
+    }
+  }
+
+  // Funzione per caricare lo storico
+  async function caricaStorico() {
+    try {
+      storico.innerHTML = "";
+
+      const q = query(
+        collection(db, "transazioni"),
+        where("studente", "==", studenteID),
+        orderBy("timestamp", "desc")
+      );
+
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        storico.innerHTML = '<li style="text-align: center; color: #94a3b8;">Nessuna transazione</li>';
+        return;
+      }
+
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const li = document.createElement("li");
+        
+        // Aggiungi classe per transazioni positive
+        if (data.variazione > 0) {
+          li.classList.add("positivo");
+        }
+        
+        // Formatta la data
+        let dataStr = "Oggi";
+        if (data.timestamp && data.timestamp.toDate) {
+          const date = data.timestamp.toDate();
+          const oggi = new Date();
+          const ieri = new Date(oggi);
+          ieri.setDate(ieri.getDate() - 1);
+          
+          if (date.toDateString() === oggi.toDateString()) {
+            dataStr = `Oggi, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+          } else if (date.toDateString() === ieri.toDateString()) {
+            dataStr = `Ieri, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+          } else {
+            dataStr = date.toLocaleDateString('it-IT');
+          }
+        }
+        
+        const descrizione = data.descrizione || "Transazione";
+        const variazione = data.variazione;
+        const segno = variazione > 0 ? '+' : '';
+        
+        li.innerHTML = `
+          <span>${segno}${variazione} Token</span>
+          <small>${descrizione}</small>
+        `;
+        
+        // Aggiungi data
+        li.setAttribute('data-time', dataStr);
+        
+        storico.appendChild(li);
+      });
+    } catch (error) {
+      console.error("Errore caricamento storico:", error);
+      storico.innerHTML = '<li style="text-align: center; color: #ef4444;">Errore caricamento storico</li>';
+    }
+  }
+
+  // Click sul bottone Scansiona QR
+  scanBtn.addEventListener("click", async () => {
+    try {
+      const ref = doc(db, "studenti", studenteID);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        alert("❌ Errore: studente non trovato");
+        return;
+      }
+
+      let token = snap.data().token || 0;
+
+      if (token <= 0) {
+        alert("❌ Token insufficienti");
+        return;
+      }
+
+      // Decrementa token
+      token--;
+      await updateDoc(ref, { token });
+
+      // Aggiungi transazione
+      await addDoc(collection(db, "transazioni"), {
+        studente: studenteID,
+        descrizione: "QR Scansionato",
+        variazione: -1,
+        timestamp: new Date()
+      });
+
+      // Aggiorna interfaccia
+      caricaToken();
+      caricaStorico();
+      
+      alert("✅ Token utilizzato!");
+
+    } catch (error) {
+      console.error("Errore utilizzo token:", error);
+      alert("❌ Errore durante l'operazione");
+    }
+  });
+
+  // Logout
+  function logout() {
+    localStorage.removeItem("studenteID");
+    localStorage.removeItem("studenteNome");
+    window.location.href = "login.html";
+  }
+
+  logoutBtn.addEventListener("click", () => {
+    if (confirm("Vuoi davvero uscire?")) {
+      logout();
+    }
+  });
+
+  // Carica i dati all'avvio
+  caricaToken();
+  caricaStorico();
+</script>
+
+</body>
+</html>
