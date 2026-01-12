@@ -19,10 +19,13 @@
     <h2 id="token">0</h2>
   </div>
 
-  <button id="scanBtn">Scansiona QR</button>
+  <button id="scanBtn" onclick="window.location.href='scanner.html'">Scansiona QR</button>
 
   <div class="storico">
-    <h3>Storico Transazioni</h3>
+    <div class="storico-header">
+      <h3>Storico Transazioni</h3>
+      <button id="toggleStorico" class="toggle-btn">Mostra tutto</button>
+    </div>
     <ul id="listaStorico">
       <li class="loading">Caricamento...</li>
     </ul>
@@ -64,10 +67,13 @@
   }
 
   const tokenSpan = document.getElementById("token");
-  const scanBtn = document.getElementById("scanBtn");
   const storico = document.getElementById("listaStorico");
   const logoutBtn = document.getElementById("logoutBtn");
   const nomeStudente = document.getElementById("nomeStudente");
+  const toggleStorico = document.getElementById("toggleStorico");
+
+  let storicoCompleto = false; // Stato dello storico (compresso o completo)
+  let transazioniCaricate = []; // Array con tutte le transazioni
 
   // Carica il nome dello studente
   const nomeStorage = localStorage.getItem("studenteNome");
@@ -98,111 +104,116 @@
     try {
       storico.innerHTML = "";
 
+      // Query SENZA orderBy per evitare errore indice
       const q = query(
         collection(db, "transazioni"),
-        where("studente", "==", studenteID),
-        orderBy("timestamp", "desc")
+        where("studente", "==", studenteID)
       );
 
       const snap = await getDocs(q);
 
       if (snap.empty) {
         storico.innerHTML = '<li style="text-align: center; color: #94a3b8;">Nessuna transazione</li>';
+        toggleStorico.style.display = 'none';
         return;
       }
 
+      // Ordina le transazioni lato client
+      transazioniCaricate = [];
       snap.forEach(docSnap => {
         const data = docSnap.data();
-        const li = document.createElement("li");
-        
-        // Aggiungi classe per transazioni positive
-        if (data.variazione > 0) {
-          li.classList.add("positivo");
-        }
-        
-        // Formatta la data
-        let dataStr = "Oggi";
-        if (data.timestamp && data.timestamp.toDate) {
-          const date = data.timestamp.toDate();
-          const oggi = new Date();
-          const ieri = new Date(oggi);
-          ieri.setDate(ieri.getDate() - 1);
-          
-          if (date.toDateString() === oggi.toDateString()) {
-            dataStr = `Oggi, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-          } else if (date.toDateString() === ieri.toDateString()) {
-            dataStr = `Ieri, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-          } else {
-            dataStr = date.toLocaleDateString('it-IT');
-          }
-        }
-        
-        const descrizione = data.descrizione || "Transazione";
-        const variazione = data.variazione;
-        const segno = variazione > 0 ? '+' : '';
-        
-        li.innerHTML = `
-          <span>${segno}${variazione} Token</span>
-          <small>${descrizione}</small>
-        `;
-        
-        // Aggiungi data
-        li.setAttribute('data-time', dataStr);
-        
-        storico.appendChild(li);
+        transazioniCaricate.push(data);
       });
+
+      // Ordina per timestamp in ordine decrescente
+      transazioniCaricate.sort((a, b) => {
+        const timeA = a.timestamp?.toDate?.() || new Date(0);
+        const timeB = b.timestamp?.toDate?.() || new Date(0);
+        return timeB - timeA;
+      });
+
+      // Mostra solo le prime 3 o tutte
+      mostraStorico();
+
+      // Mostra/nascondi il bottone in base al numero di transazioni
+      if (transazioniCaricate.length > 3) {
+        toggleStorico.style.display = 'block';
+      } else {
+        toggleStorico.style.display = 'none';
+      }
+
     } catch (error) {
       console.error("Errore caricamento storico:", error);
       storico.innerHTML = '<li style="text-align: center; color: #ef4444;">Errore caricamento storico</li>';
     }
   }
 
-  // Click sul bottone Scansiona QR
-  scanBtn.addEventListener("click", async () => {
-    try {
-      const ref = doc(db, "studenti", studenteID);
-      const snap = await getDoc(ref);
+  // Funzione per mostrare lo storico (3 o tutte)
+  function mostraStorico() {
+    storico.innerHTML = '';
 
-      if (!snap.exists()) {
-        alert("❌ Errore: studente non trovato");
-        return;
-      }
+    const transazioniDaMostrare = storicoCompleto 
+      ? transazioniCaricate 
+      : transazioniCaricate.slice(0, 3);
 
-      let token = snap.data().token || 0;
-
-      if (token <= 0) {
-        alert("❌ Token insufficienti");
-        return;
-      }
-
-      // Decrementa token
-      token--;
-      await updateDoc(ref, { token });
-
-      // Aggiungi transazione
-      await addDoc(collection(db, "transazioni"), {
-        studente: studenteID,
-        descrizione: "QR Scansionato",
-        variazione: -1,
-        timestamp: new Date()
-      });
-
-      // Aggiorna interfaccia
-      caricaToken();
-      caricaStorico();
+    // Crea gli elementi della lista
+    transazioniDaMostrare.forEach(data => {
+      const li = document.createElement("li");
       
-      alert("✅ Token utilizzato!");
+      // Aggiungi classe per transazioni positive
+      if (data.variazione > 0) {
+        li.classList.add("positivo");
+      }
+      
+      // Formatta la data
+      let dataStr = "Oggi";
+      if (data.timestamp && data.timestamp.toDate) {
+        const date = data.timestamp.toDate();
+        const oggi = new Date();
+        const ieri = new Date(oggi);
+        ieri.setDate(ieri.getDate() - 1);
+        
+        if (date.toDateString() === oggi.toDateString()) {
+          dataStr = `Oggi, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        } else if (date.toDateString() === ieri.toDateString()) {
+          dataStr = `Ieri, ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        } else {
+          dataStr = date.toLocaleDateString('it-IT');
+        }
+      }
+      
+      const descrizione = data.descrizione || "Transazione";
+      const variazione = data.variazione;
+      const segno = variazione > 0 ? '+' : '';
+      
+      li.innerHTML = `
+        <span>${segno}${variazione} Token</span>
+        <small>${descrizione}</small>
+      `;
+      
+      // Aggiungi data
+      li.setAttribute('data-time', dataStr);
+      
+      storico.appendChild(li);
+    });
 
-    } catch (error) {
-      console.error("Errore utilizzo token:", error);
-      alert("❌ Errore durante l'operazione");
+    // Aggiorna il testo del bottone
+    if (transazioniCaricate.length > 3) {
+      toggleStorico.textContent = storicoCompleto ? 'Mostra meno' : 'Mostra tutto';
     }
+  }
+
+  // Click sul bottone toggle storico
+  toggleStorico.addEventListener("click", () => {
+    storicoCompleto = !storicoCompleto;
+    mostraStorico();
   });
 
   // Logout
   function logout() {
     localStorage.removeItem("studenteID");
     localStorage.removeItem("studenteNome");
+    localStorage.removeItem("isAdmin");
     window.location.href = "login.html";
   }
 
