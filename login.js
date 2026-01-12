@@ -27,8 +27,11 @@ const loginBtn = document.getElementById("loginBtn");
 
 /* 🔹 VERIFICA SE GIÀ LOGGATO */
 const studenteLoggato = localStorage.getItem("studenteID");
-if (studenteLoggato) {
-  // Se già loggato, vai direttamente alla dashboard
+const isAdmin = localStorage.getItem("isAdmin");
+
+if (studenteLoggato && isAdmin === "true") {
+  window.location.href = "admin.html";
+} else if (studenteLoggato) {
   window.location.href = "index.html";
 }
 
@@ -36,6 +39,7 @@ if (studenteLoggato) {
 loginBtn.addEventListener("click", async () => {
   const username = usernameInput.value.trim();
   const password = passwordInput.value.trim();
+  const userType = document.querySelector('input[name="userType"]:checked').value;
 
   // Validazione base
   if (!username || !password) {
@@ -48,7 +52,7 @@ loginBtn.addEventListener("click", async () => {
   loginBtn.textContent = "Caricamento...";
 
   try {
-    // Cerchiamo lo studente
+    // Cerca nella collection studenti
     const q = query(
       collection(db, "studenti"),
       where("username", "==", username),
@@ -65,16 +69,39 @@ loginBtn.addEventListener("click", async () => {
       return;
     }
 
-    // Login OK - Salva l'ID dello studente
-    const studenteID = snapshot.docs[0].id;
-    const studenteData = snapshot.docs[0].data();
-    
-    localStorage.setItem("studenteID", studenteID);
-    localStorage.setItem("studenteNome", studenteData.nome || "Studente");
+    // Prendi i dati dell'utente
+    const userID = snapshot.docs[0].id;
+    const userData = snapshot.docs[0].data();
+    const ruolo = userData.ruolo || "studente"; // Default: studente
 
-    // Redirect alla dashboard
-    alert("✅ Login riuscito!");
-    window.location.href = "index.html";
+    // Verifica che il ruolo corrisponda alla selezione
+    if (userType === "admin" && ruolo !== "admin") {
+      alert("❌ Non hai i permessi di amministratore");
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Accedi";
+      return;
+    }
+
+    if (userType === "studente" && ruolo === "admin") {
+      alert("⚠️ Questo è un account admin. Seleziona 'Admin' per accedere.");
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Accedi";
+      return;
+    }
+
+    // Salva i dati in localStorage
+    localStorage.setItem("studenteID", userID);
+    localStorage.setItem("studenteNome", userData.nome || "Utente");
+    
+    if (ruolo === "admin") {
+      localStorage.setItem("isAdmin", "true");
+      alert("✅ Login admin riuscito!");
+      window.location.href = "admin.html";
+    } else {
+      localStorage.setItem("isAdmin", "false");
+      alert("✅ Login riuscito!");
+      window.location.href = "index.html";
+    }
 
   } catch (error) {
     console.error("Errore login:", error);
