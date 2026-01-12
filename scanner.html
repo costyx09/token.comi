@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanner QR</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="app scanner-page">
+  <header>
+    <button onclick="window.location.href='index.html'" class="back-btn">← Indietro</button>
+    <h1>Scansiona QR Code</h1>
+  </header>
+
+  <div class="scanner-container">
+    <div id="reader"></div>
+    
+    <div id="result" class="result-box hidden">
+      <div class="result-icon">✅</div>
+      <h2 id="resultTitle">Scansione completata!</h2>
+      <p id="resultMessage"></p>
+      <div class="result-buttons">
+        <button onclick="location.reload()" class="btn-primary">Scansiona Altro</button>
+        <button onclick="window.location.href='index.html'" class="btn-secondary">Torna alla Dashboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    doc, 
+    getDoc, 
+    updateDoc,
+    collection,
+    addDoc,
+    query,
+    where,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEN54mTu8CdsWoWvw0sP6xAfL2NRlAN9M",
+    authDomain: "assemblea-token.firebaseapp.com",
+    projectId: "assemblea-token",
+    storageBucket: "assemblea-token.firebasestorage.app",
+    messagingSenderId: "682305266240",
+    appId: "1:682305266240:web:30a93bb05c10d1a2aeb5a5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Verifica login
+  const studenteID = localStorage.getItem("studenteID");
+  if (!studenteID) {
+    alert("⚠️ Devi effettuare il login");
+    window.location.href = "login.html";
+  }
+
+  let scannerAttivo = true;
+  let html5QrCode;
+
+  // Inizializza lo scanner
+  function inizializzaScanner() {
+    html5QrCode = new Html5Qrcode("reader");
+    
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      aspectRatio: 1.0
+    };
+
+    html5QrCode.start(
+      { facingMode: "environment" },
+      config,
+      onScanSuccess,
+      onScanError
+    ).catch(err => {
+      console.error("Errore avvio scanner:", err);
+      alert("❌ Errore nell'avvio della fotocamera. Verifica i permessi.");
+    });
+  }
+
+  // Successo scansione
+  async function onScanSuccess(decodedText) {
+    if (!scannerAttivo) return;
+    scannerAttivo = false;
+
+    // Ferma lo scanner
+    html5QrCode.stop();
+
+    await processaQRCode(decodedText);
+  }
+
+  // Errore scansione (ignora)
+  function onScanError(error) {
+    // Ignora errori di scansione continua
+  }
+
+  // Processa il QR code scansionato
+  async function processaQRCode(qrData) {
+    try {
+      console.log("QR scansionato:", qrData);
+
+      // Cerca il QR code nel database
+      const q = query(
+        collection(db, "qrcodes"),
+        where("codice", "==", qrData),
+        where("attivo", "==", true)
+      );
+
+      const qrSnap = await getDocs(q);
+
+      if (qrSnap.empty) {
+        mostraRisultato("❌", "QR Code non valido", "Questo QR non è registrato nel sistema.", false);
+        return;
+      }
+
+      const qrCodeData = qrSnap.docs[0].data();
+      const costoToken = qrCodeData.costo || 1;
+      const descrizione = qrCodeData.descrizione || "Servizio";
+
+      // Verifica saldo studente
+      const studenteRef = doc(db, "studenti", studenteID);
+      const studenteSnap = await getDoc(studenteRef);
+
+      if (!studenteSnap.exists()) {
+        mostraRisultato("❌", "Errore", "Studente non trovato.", false);
+        return;
+      }
+
+      const tokenAttuali = studenteSnap.data().token || 0;
+
+      if (tokenAttuali < costoToken) {
+        mostraRisultato("❌", "Token insufficienti", `Servizio: ${descrizione}\nCosto: ${costoToken} token\nDisponibili: ${tokenAttuali} token`, false);
+        return;
+      }
+
+      // Decrementa i token
+      const nuoviToken = tokenAttuali - costoToken;
+      await updateDoc(studenteRef, { token: nuoviToken });
+
+      // Registra la transazione
+      await addDoc(collection(db, "transazioni"), {
+        studente: studenteID,
+        descrizione: descrizione,
+        variazione: -costoToken,
+        timestamp: new Date(),
+        qrcode: qrData
+      });
+
+      // Mostra successo
+      mostraRisultato(
+        "✅", 
+        "Acquisto completato!", 
+        `${descrizione}\n-${costoToken} token\nSaldo: ${nuoviToken} token`,
+        true
+      );
+
+    } catch (error) {
+      console.error("Errore processamento QR:", error);
+      mostraRisultato("❌", "Errore", "Si è verificato un errore. Riprova.", false);
+    }
+  }
+
+  // Mostra risultato
+  function mostraRisultato(icon, title, message, success) {
+    document.getElementById("reader").style.display = "none";
+    document.getElementById("result").classList.remove("hidden");
+    
+    const resultIcon = document.querySelector(".result-icon");
+    resultIcon.textContent = icon;
+    resultIcon.style.color = success ? "#10b981" : "#ef4444";
+    
+    document.getElementById("resultTitle").textContent = title;
+    document.getElementById("resultMessage").textContent = message;
+  }
+
+  // Avvia lo scanner
+  inizializzaScanner();
+</script>
+
+</body>
+</html>

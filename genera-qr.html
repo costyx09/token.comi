@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genera QR Code</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <button onclick="window.location.href='admin.html'" class="back-btn">← Indietro</button>
+    <h1>Genera QR Code</h1>
+  </header>
+
+  <div class="genera-qr-container">
+    <div class="form-card">
+      <h3>Crea nuovo QR Code</h3>
+      
+      <input type="text" id="descrizione" placeholder="Descrizione (es: Panino)" class="input-field">
+      
+      <input type="number" id="costo" placeholder="Costo in token" min="1" value="1" class="input-field">
+      
+      <button id="generaBtn" class="btn-generate">Genera QR Code</button>
+    </div>
+
+    <div id="qrResult" class="qr-result hidden">
+      <h3>QR Code Generato</h3>
+      <div id="qrcode"></div>
+      <p class="qr-info">
+        <strong id="qrDescrizione"></strong><br>
+        Costo: <span id="qrCosto"></span> token
+      </p>
+      <p class="qr-code-text">Codice: <code id="codiceGenerato"></code></p>
+      <button onclick="location.reload()" class="btn-secondary">Genera Altro</button>
+    </div>
+
+    <div class="qr-list">
+      <h3>QR Codes Esistenti</h3>
+      <div id="listaQR">
+        <p class="loading-text">Caricamento...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    collection,
+    addDoc,
+    getDocs,
+    doc,
+    updateDoc,
+    query,
+    where
+  } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEN54mTu8CdsWoWvw0sP6xAfL2NRlAN9M",
+    authDomain: "assemblea-token.firebaseapp.com",
+    projectId: "assemblea-token",
+    storageBucket: "assemblea-token.firebasestorage.app",
+    messagingSenderId: "682305266240",
+    appId: "1:682305266240:web:30a93bb05c10d1a2aeb5a5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Verifica admin
+  const adminID = localStorage.getItem("studenteID");
+  const isAdmin = localStorage.getItem("isAdmin");
+  
+  if (!adminID || isAdmin !== "true") {
+    alert("⚠️ Accesso negato. Solo per admin.");
+    window.location.href = "login.html";
+  }
+
+  const descrizioneInput = document.getElementById("descrizione");
+  const costoInput = document.getElementById("costo");
+  const generaBtn = document.getElementById("generaBtn");
+  const qrResult = document.getElementById("qrResult");
+  const listaQR = document.getElementById("listaQR");
+
+  // Genera QR Code
+  generaBtn.addEventListener("click", async () => {
+    const descrizione = descrizioneInput.value.trim();
+    const costo = parseInt(costoInput.value);
+
+    if (!descrizione) {
+      alert("❌ Inserisci una descrizione");
+      return;
+    }
+
+    if (costo < 1) {
+      alert("❌ Il costo deve essere almeno 1 token");
+      return;
+    }
+
+    generaBtn.disabled = true;
+    generaBtn.textContent = "Generazione...";
+
+    try {
+      // Genera codice unico
+      const codiceUnico = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Salva nel database
+      await addDoc(collection(db, "qrcodes"), {
+        codice: codiceUnico,
+        descrizione: descrizione,
+        costo: costo,
+        attivo: true,
+        creato: new Date()
+      });
+
+      // Mostra QR Code
+      document.getElementById("qrcode").innerHTML = "";
+      new QRCode(document.getElementById("qrcode"), {
+        text: codiceUnico,
+        width: 256,
+        height: 256
+      });
+
+      document.getElementById("qrDescrizione").textContent = descrizione;
+      document.getElementById("qrCosto").textContent = costo;
+      document.getElementById("codiceGenerato").textContent = codiceUnico;
+
+      document.querySelector(".form-card").style.display = "none";
+      qrResult.classList.remove("hidden");
+
+      // Ricarica lista
+      caricaQRCodes();
+
+    } catch (error) {
+      console.error("Errore generazione QR:", error);
+      alert("❌ Errore nella generazione del QR Code");
+      generaBtn.disabled = false;
+      generaBtn.textContent = "Genera QR Code";
+    }
+  });
+
+  // Carica QR Codes esistenti
+  async function caricaQRCodes() {
+    try {
+      const q = query(collection(db, "qrcodes"), where("attivo", "==", true));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        listaQR.innerHTML = '<p class="no-data">Nessun QR Code creato</p>';
+        return;
+      }
+
+      listaQR.innerHTML = '';
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const qrId = docSnap.id;
+
+        const card = document.createElement("div");
+        card.className = "qr-item";
+        card.innerHTML = `
+          <div class="qr-item-info">
+            <strong>${data.descrizione}</strong>
+            <span class="qr-cost">${data.costo} token</span>
+          </div>
+          <button class="btn-disattiva" data-id="${qrId}">Disattiva</button>
+        `;
+
+        listaQR.appendChild(card);
+      });
+
+      // Aggiungi event listener per disattivare
+      document.querySelectorAll('.btn-disattiva').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (confirm("Disattivare questo QR Code?")) {
+            await disattivaQR(btn.dataset.id);
+          }
+        });
+      });
+
+    } catch (error) {
+      console.error("Errore caricamento QR:", error);
+      listaQR.innerHTML = '<p class="error-text">Errore caricamento</p>';
+    }
+  }
+
+  // Disattiva QR Code
+  async function disattivaQR(qrId) {
+    try {
+      await updateDoc(doc(db, "qrcodes", qrId), { attivo: false });
+      alert("✅ QR Code disattivato");
+      caricaQRCodes();
+    } catch (error) {
+      console.error("Errore disattivazione:", error);
+      alert("❌ Errore nella disattivazione");
+    }
+  }
+
+  // Carica all'avvio
+  caricaQRCodes();
+</script>
+
+</body>
+</html>
