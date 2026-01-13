@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storico Studente</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <button onclick="window.location.href='admin.html'" class="back-btn">← Indietro</button>
+    <h1 id="nomeStudente">Storico Studente</h1>
+  </header>
+
+  <div class="student-summary">
+    <div class="summary-card">
+      <div class="summary-icon">💰</div>
+      <div class="summary-value" id="tokenAttuali">0</div>
+      <div class="summary-label">Token Attuali</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon">📊</div>
+      <div class="summary-value" id="totalTransazioni">0</div>
+      <div class="summary-label">Transazioni Totali</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-icon">💸</div>
+      <div class="summary-value" id="tokenSpesi">0</div>
+      <div class="summary-label">Token Spesi</div>
+    </div>
+  </div>
+
+  <div class="storico-completo">
+    <h3>📋 Storico Completo</h3>
+    <div id="listaStorico" class="storico-list">
+      <div class="loading-text">Caricamento...</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    doc,
+    getDoc,
+    collection,
+    getDocs,
+    query,
+    where
+  } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEN54mTu8CdsWoWvw0sP6xAfL2NRlAN9M",
+    authDomain: "assemblea-token.firebaseapp.com",
+    projectId: "assemblea-token",
+    storageBucket: "assemblea-token.firebasestorage.app",
+    messagingSenderId: "682305266240",
+    appId: "1:682305266240:web:30a93bb05c10d1a2aeb5a5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Verifica admin
+  const adminID = localStorage.getItem("studenteID");
+  const isAdmin = localStorage.getItem("isAdmin");
+  
+  if (!adminID || isAdmin !== "true") {
+    alert("⚠️ Accesso negato. Solo per admin.");
+    window.location.href = "login.html";
+  }
+
+  // Prendi ID studente dall'URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const studenteID = urlParams.get('id');
+
+  if (!studenteID) {
+    alert("❌ ID studente mancante");
+    window.location.href = "admin.html";
+  }
+
+  const nomeStudente = document.getElementById("nomeStudente");
+  const listaStorico = document.getElementById("listaStorico");
+
+  // Carica dati studente
+  async function caricaDatiStudente() {
+    try {
+      const studenteRef = doc(db, "studenti", studenteID);
+      const studenteSnap = await getDoc(studenteRef);
+
+      if (!studenteSnap.exists()) {
+        alert("❌ Studente non trovato");
+        window.location.href = "admin.html";
+        return;
+      }
+
+      const studenteData = studenteSnap.data();
+      nomeStudente.textContent = `Storico ${studenteData.nome || 'Studente'}`;
+      document.getElementById("tokenAttuali").textContent = studenteData.token || 0;
+
+    } catch (error) {
+      console.error("Errore caricamento studente:", error);
+      alert("❌ Errore di caricamento");
+    }
+  }
+
+  // Carica storico completo
+  async function caricaStorico() {
+    try {
+      const q = query(
+        collection(db, "transazioni"),
+        where("studente", "==", studenteID)
+      );
+
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        listaStorico.innerHTML = '<div class="no-data">Nessuna transazione trovata</div>';
+        document.getElementById("totalTransazioni").textContent = 0;
+        document.getElementById("tokenSpesi").textContent = 0;
+        return;
+      }
+
+      // Ordina transazioni
+      const transazioni = [];
+      snap.forEach(docSnap => {
+        transazioni.push(docSnap.data());
+      });
+
+      transazioni.sort((a, b) => {
+        const timeA = a.timestamp?.toDate?.() || new Date(0);
+        const timeB = b.timestamp?.toDate?.() || new Date(0);
+        return timeB - timeA;
+      });
+
+      // Calcola statistiche
+      let tokenSpesi = 0;
+      transazioni.forEach(t => {
+        if (t.variazione < 0) {
+          tokenSpesi += Math.abs(t.variazione);
+        }
+      });
+
+      document.getElementById("totalTransazioni").textContent = transazioni.length;
+      document.getElementById("tokenSpesi").textContent = tokenSpesi;
+
+      // Mostra transazioni
+      listaStorico.innerHTML = '';
+
+      transazioni.forEach(data => {
+        const item = document.createElement("div");
+        item.className = "storico-item";
+        if (data.variazione > 0) {
+          item.classList.add("positivo");
+        }
+
+        let dataStr = "Data sconosciuta";
+        if (data.timestamp && data.timestamp.toDate) {
+          const date = data.timestamp.toDate();
+          dataStr = date.toLocaleString('it-IT', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+
+        const descrizione = data.descrizione || "Transazione";
+        const variazione = data.variazione;
+        const segno = variazione > 0 ? '+' : '';
+
+        item.innerHTML = `
+          <div class="storico-icon">${variazione > 0 ? '➕' : '➖'}</div>
+          <div class="storico-details">
+            <strong>${descrizione}</strong>
+            <span class="storico-date">${dataStr}</span>
+          </div>
+          <div class="storico-amount ${variazione > 0 ? 'positive' : 'negative'}">
+            ${segno}${variazione}
+          </div>
+        `;
+
+        listaStorico.appendChild(item);
+      });
+
+    } catch (error) {
+      console.error("Errore caricamento storico:", error);
+      listaStorico.innerHTML = '<div class="error-text">Errore caricamento storico</div>';
+    }
+  }
+
+  // Carica all'avvio
+  caricaDatiStudente();
+  caricaStorico();
+</script>
+
+</body>
+</html>

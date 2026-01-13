@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statistiche</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <button onclick="window.location.href='admin.html'" class="back-btn">← Indietro</button>
+    <h1>Statistiche</h1>
+  </header>
+
+  <div class="stats-container">
+    <!-- Statistiche Generali -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-value" id="totalToken">0</div>
+        <div class="stat-label">Token Totali in Circolazione</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value" id="totalTransazioni">0</div>
+        <div class="stat-label">Transazioni Oggi</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value" id="studentiAttivi">0</div>
+        <div class="stat-label">Studenti Attivi</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-value" id="mediaToken">0</div>
+        <div class="stat-label">Media Token per Studente</div>
+      </div>
+    </div>
+
+    <!-- Ultime Transazioni -->
+    <div class="recent-transactions">
+      <div class="section-header">
+        <h3>🔄 Ultime Transazioni</h3>
+        <button id="refreshBtn" class="btn-refresh">Aggiorna</button>
+      </div>
+      <div id="listaTransazioni" class="transactions-list">
+        <div class="loading-text">Caricamento...</div>
+      </div>
+    </div>
+
+    <!-- Top Spese -->
+    <div class="top-spese">
+      <h3>🔥 Servizi Più Usati</h3>
+      <div id="topSpese" class="top-list">
+        <div class="loading-text">Caricamento...</div>
+      </div>
+    </div>
+
+    <!-- Grafici -->
+    <div class="charts-section">
+      <div class="chart-card">
+        <h3>📈 Transazioni Ultimi 7 Giorni</h3>
+        <canvas id="transazioniChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>🎯 Distribuzione Spese</h3>
+        <canvas id="distribuzioneChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    collection,
+    getDocs,
+    query,
+    where,
+    orderBy,
+    limit
+  } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEN54mTu8CdsWoWvw0sP6xAfL2NRlAN9M",
+    authDomain: "assemblea-token.firebaseapp.com",
+    projectId: "assemblea-token",
+    storageBucket: "assemblea-token.firebasestorage.app",
+    messagingSenderId: "682305266240",
+    appId: "1:682305266240:web:30a93bb05c10d1a2aeb5a5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Verifica admin
+  const adminID = localStorage.getItem("studenteID");
+  const isAdmin = localStorage.getItem("isAdmin");
+  
+  if (!adminID || isAdmin !== "true") {
+    alert("⚠️ Accesso negato. Solo per admin.");
+    window.location.href = "login.html";
+  }
+
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  let transazioniChartInstance = null;
+  let distribuzioneChartInstance = null;
+
+  // Carica tutte le statistiche
+  async function caricaStatistiche() {
+    try {
+      // Token totali
+      const studentiSnap = await getDocs(
+        query(collection(db, "studenti"), where("ruolo", "==", "studente"))
+      );
+      
+      let totalToken = 0;
+      let studentiCount = 0;
+      
+      studentiSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.attivo) {
+          totalToken += data.token || 0;
+          studentiCount++;
+        }
+      });
+
+      document.getElementById("totalToken").textContent = totalToken;
+      document.getElementById("studentiAttivi").textContent = studentiCount;
+      document.getElementById("mediaToken").textContent = 
+        studentiCount > 0 ? Math.round(totalToken / studentiCount) : 0;
+
+      // Transazioni oggi
+      const oggi = new Date();
+      oggi.setHours(0, 0, 0, 0);
+      
+      const transazioniSnap = await getDocs(collection(db, "transazioni"));
+      let transazioniOggi = 0;
+      
+      transazioniSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.timestamp && data.timestamp.toDate) {
+          const dataTransazione = data.timestamp.toDate();
+          if (dataTransazione >= oggi) {
+            transazioniOggi++;
+          }
+        }
+      });
+
+      document.getElementById("totalTransazioni").textContent = transazioniOggi;
+
+    } catch (error) {
+      console.error("Errore caricamento statistiche:", error);
+    }
+  }
+
+  // Carica ultime transazioni
+  async function caricaUltimeTransazioni() {
+    try {
+      const listaTransazioni = document.getElementById("listaTransazioni");
+      listaTransazioni.innerHTML = '<div class="loading-text">Caricamento...</div>';
+
+      const transazioniSnap = await getDocs(collection(db, "transazioni"));
+      
+      // Converti in array e ordina
+      const transazioni = [];
+      transazioniSnap.forEach(doc => {
+        transazioni.push(doc.data());
+      });
+
+      transazioni.sort((a, b) => {
+        const timeA = a.timestamp?.toDate?.() || new Date(0);
+        const timeB = b.timestamp?.toDate?.() || new Date(0);
+        return timeB - timeA;
+      });
+
+      // Prendi le ultime 10
+      const ultime = transazioni.slice(0, 10);
+
+      if (ultime.length === 0) {
+        listaTransazioni.innerHTML = '<div class="no-data">Nessuna transazione</div>';
+        return;
+      }
+
+      listaTransazioni.innerHTML = '';
+
+      // Carica nomi studenti
+      const studentiSnap = await getDocs(collection(db, "studenti"));
+      const studentiMap = {};
+      studentiSnap.forEach(doc => {
+        studentiMap[doc.id] = doc.data().nome || "Studente";
+      });
+
+      ultime.forEach(t => {
+        const item = document.createElement("div");
+        item.className = "transaction-item";
+        
+        const nomeStudente = studentiMap[t.studente] || "Studente";
+        const variazione = t.variazione || 0;
+        const descrizione = t.descrizione || "Transazione";
+        
+        let tempo = "Ora sconosciuta";
+        if (t.timestamp && t.timestamp.toDate) {
+          const date = t.timestamp.toDate();
+          tempo = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        item.innerHTML = `
+          <div class="transaction-info">
+            <strong>${nomeStudente}</strong>
+            <span class="transaction-desc">${descrizione}</span>
+          </div>
+          <div class="transaction-amount ${variazione > 0 ? 'positive' : 'negative'}">
+            ${variazione > 0 ? '+' : ''}${variazione}
+            <small>${tempo}</small>
+          </div>
+        `;
+
+        listaTransazioni.appendChild(item);
+      });
+
+    } catch (error) {
+      console.error("Errore caricamento transazioni:", error);
+      document.getElementById("listaTransazioni").innerHTML = 
+        '<div class="error-text">Errore caricamento</div>';
+    }
+  }
+
+  // Carica servizi più usati
+  async function caricaTopSpese() {
+    try {
+      const topSpese = document.getElementById("topSpese");
+      topSpese.innerHTML = '<div class="loading-text">Caricamento...</div>';
+
+      const transazioniSnap = await getDocs(collection(db, "transazioni"));
+      
+      const conteggioServizi = {};
+      
+      transazioniSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.variazione < 0) { // Solo spese
+          const servizio = data.descrizione || "Altro";
+          conteggioServizi[servizio] = (conteggioServizi[servizio] || 0) + Math.abs(data.variazione);
+        }
+      });
+
+      // Converti in array e ordina
+      const topArray = Object.entries(conteggioServizi)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      if (topArray.length === 0) {
+        topSpese.innerHTML = '<div class="no-data">Nessun dato disponibile</div>';
+        return;
+      }
+
+      topSpese.innerHTML = '';
+
+      topArray.forEach(([servizio, totale], index) => {
+        const item = document.createElement("div");
+        item.className = "top-item";
+        item.innerHTML = `
+          <div class="top-rank">${index + 1}</div>
+          <div class="top-info">
+            <strong>${servizio}</strong>
+            <span>${totale} token spesi</span>
+          </div>
+        `;
+        topSpese.appendChild(item);
+      });
+
+    } catch (error) {
+      console.error("Errore caricamento top spese:", error);
+      document.getElementById("topSpese").innerHTML = 
+        '<div class="error-text">Errore caricamento</div>';
+    }
+  }
+
+  // Refresh
+  refreshBtn.addEventListener("click", () => {
+    refreshBtn.textContent = "⏳";
+    refreshBtn.disabled = true;
+    
+    Promise.all([
+      caricaStatistiche(),
+      caricaUltimeTransazioni(),
+      caricaTopSpese(),
+      caricaGrafici()
+    ]).then(() => {
+      refreshBtn.textContent = "Aggiorna";
+      refreshBtn.disabled = false;
+    });
+  });
+
+  // Carica all'avvio
+  caricaStatistiche();
+  caricaUltimeTransazioni();
+  caricaTopSpese();
+
+  // Auto-refresh ogni 30 secondi
+  setInterval(() => {
+    caricaStatistiche();
+    caricaUltimeTransazioni();
+  }, 30000);
+
+  // Grafici
+  async function caricaGrafici() {
+    try {
+      const transazioniSnap = await getDocs(collection(db, "transazioni"));
+      
+      // Grafico transazioni ultimi 7 giorni
+      const ultimi7Giorni = [];
+      const oggi = new Date();
+      
+      for (let i = 6; i >= 0; i--) {
+        const data = new Date(oggi);
+        data.setDate(data.getDate() - i);
+        data.setHours(0, 0, 0, 0);
+        ultimi7Giorni.push({
+          data: data,
+          label: data.toLocaleDateString('it-IT', { weekday: 'short' }),
+          count: 0
+        });
+      }
+
+      transazioniSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.timestamp && data.timestamp.toDate) {
+          const dataTransazione = data.timestamp.toDate();
+          dataTransazione.setHours(0, 0, 0, 0);
+          
+          ultimi7Giorni.forEach(giorno => {
+            if (dataTransazione.getTime() === giorno.data.getTime()) {
+              giorno.count++;
+            }
+          });
+        }
+      });
+
+      // Crea grafico transazioni
+      const ctx1 = document.getElementById('transazioniChart').getContext('2d');
+      
+      if (transazioniChartInstance) {
+        transazioniChartInstance.destroy();
+      }
+
+      transazioniChartInstance = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: ultimi7Giorni.map(g => g.label),
+          datasets: [{
+            label: 'Transazioni',
+            data: ultimi7Giorni.map(g => g.count),
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          }
+        }
+      });
+
+      // Grafico distribuzione spese
+      const distribuzioneSpese = {};
+      
+      transazioniSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.variazione < 0) {
+          const servizio = data.descrizione || "Altro";
+          distribuzioneSpese[servizio] = (distribuzioneSpese[servizio] || 0) + Math.abs(data.variazione);
+        }
+      });
+
+      const topServizi = Object.entries(distribuzioneSpese)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      const ctx2 = document.getElementById('distribuzioneChart').getContext('2d');
+      
+      if (distribuzioneChartInstance) {
+        distribuzioneChartInstance.destroy();
+      }
+
+      const colors = [
+        '#3b82f6',
+        '#10b981',
+        '#f59e0b',
+        '#ef4444',
+        '#8b5cf6'
+      ];
+
+      distribuzioneChartInstance = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: topServizi.map(s => s[0]),
+          datasets: [{
+            data: topServizi.map(s => s[1]),
+            backgroundColor: colors,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error("Errore caricamento grafici:", error);
+    }
+  }
+
+  // Carica tutto
+  caricaStatistiche();
+  caricaUltimeTransazioni();
+  caricaTopSpese();
+  caricaGrafici();
+</script>
+
+</body>
+</html>
