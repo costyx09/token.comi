@@ -11,8 +11,9 @@
 
 <div class="app">
   <header>
-    <button onclick="window.location.href='admin.html'" class="back-btn">← Indietro</button>
+    <button id="backBtn" class="back-btn">← Indietro</button>
     <h1>Genera QR Code</h1>
+    <button id="logoutBtn" class="logout-btn">Esci</button>
   </header>
 
   <div class="genera-qr-container">
@@ -71,12 +72,12 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // Verifica admin
+  // Verifica admin O venditore
   const adminID = localStorage.getItem("studenteID");
-  const isAdmin = localStorage.getItem("isAdmin");
+  const ruoloUtente = localStorage.getItem("ruoloUtente");
   
-  if (!adminID || isAdmin !== "true") {
-    alert("⚠️ Accesso negato. Solo per admin.");
+  if (!adminID || (ruoloUtente !== "admin" && ruoloUtente !== "venditore")) {
+    alert("⚠️ Accesso negato. Solo per admin e venditori.");
     window.location.href = "login.html";
   }
 
@@ -85,6 +86,29 @@
   const generaBtn = document.getElementById("generaBtn");
   const qrResult = document.getElementById("qrResult");
   const listaQR = document.getElementById("listaQR");
+  const backBtn = document.getElementById("backBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  // Bottone indietro - dipende dal ruolo
+  backBtn.addEventListener("click", () => {
+    if (ruoloUtente === "admin") {
+      window.location.href = "admin.html";
+    } else {
+      // Venditore non ha altra pagina, ricarica questa
+      location.reload();
+    }
+  });
+
+  // Logout
+  logoutBtn.addEventListener("click", () => {
+    if (confirm("Vuoi davvero uscire?")) {
+      localStorage.removeItem("studenteID");
+      localStorage.removeItem("studenteNome");
+      localStorage.removeItem("isAdmin");
+      localStorage.removeItem("ruoloUtente");
+      window.location.href = "login.html";
+    }
+  });
 
   // Genera QR Code
   generaBtn.addEventListener("click", async () => {
