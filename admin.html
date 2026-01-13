@@ -18,6 +18,16 @@
     <button onclick="window.location.href='genera-qr.html'" class="btn-qr">
       📱 Genera QR Code
     </button>
+    <button onclick="window.location.href='statistiche.html'" class="btn-stats">
+      📊 Statistiche
+    </button>
+  </div>
+
+  <div class="search-filters">
+    <input type="text" id="searchInput" placeholder="🔍 Cerca studente..." class="search-input">
+    <select id="classeFilter" class="filter-select">
+      <option value="">Tutte le classi</option>
+    </select>
   </div>
 
   <div id="listaStudenti" class="lista-studenti">
@@ -61,12 +71,17 @@
 
   const listaStudenti = document.getElementById("listaStudenti");
   const logoutBtn = document.getElementById("logoutBtn");
+  const searchInput = document.getElementById("searchInput");
+  const classeFilter = document.getElementById("classeFilter");
+
+  let tuttiStudenti = []; // Array con tutti gli studenti
 
   // Logout
   function logout() {
     localStorage.removeItem("studenteID");
     localStorage.removeItem("studenteNome");
     localStorage.removeItem("isAdmin");
+    localStorage.removeItem("ruoloUtente");
     window.location.href = "login.html";
   }
 
@@ -81,7 +96,11 @@
     try {
       listaStudenti.innerHTML = '<div class="loading-admin">Caricamento...</div>';
 
-      const q = query(collection(db, "studenti"), where("attivo", "==", true));
+      const q = query(
+        collection(db, "studenti"), 
+        where("attivo", "==", true),
+        where("ruolo", "==", "studente") // Solo studenti, non admin/venditori
+      );
       const snapshot = await getDocs(q);
 
       if (snapshot.empty) {
@@ -89,43 +108,114 @@
         return;
       }
 
-      listaStudenti.innerHTML = '';
+      tuttiStudenti = [];
+      const classiSet = new Set();
 
       snapshot.forEach(docSnap => {
         const studenteID = docSnap.id;
         const data = docSnap.data();
+        
+        tuttiStudenti.push({
+          id: studenteID,
+          ...data
+        });
 
-        const card = document.createElement("div");
-        card.className = "studente";
-        card.innerHTML = `
-          <div>
-            <strong>${data.nome || 'Nome non disponibile'}</strong>
-            <small>${data.classe || 'N/A'}</small>
-          </div>
-          <div class="azioni">
-            <span class="token-count">${data.token || 0}</span>
-            <button class="btn-add" data-id="${studenteID}">+4</button>
-            <button class="btn-remove" data-id="${studenteID}">-1</button>
-          </div>
-        `;
-
-        listaStudenti.appendChild(card);
+        // Raccogli tutte le classi uniche
+        if (data.classe) {
+          classiSet.add(data.classe);
+        }
       });
 
-      // Aggiungi event listener ai bottoni
-      document.querySelectorAll('.btn-add').forEach(btn => {
-        btn.addEventListener('click', () => aggiungiToken(btn.dataset.id, 4));
+      // Popola il filtro classi
+      classeFilter.innerHTML = '<option value="">Tutte le classi</option>';
+      Array.from(classiSet).sort().forEach(classe => {
+        const option = document.createElement("option");
+        option.value = classe;
+        option.textContent = classe;
+        classeFilter.appendChild(option);
       });
 
-      document.querySelectorAll('.btn-remove').forEach(btn => {
-        btn.addEventListener('click', () => rimuoviToken(btn.dataset.id, 1));
-      });
+      // Mostra tutti gli studenti
+      mostraStudenti(tuttiStudenti);
 
     } catch (error) {
       console.error("Errore caricamento studenti:", error);
       listaStudenti.innerHTML = '<div class="error-admin">❌ Errore di caricamento</div>';
     }
   }
+
+  // Funzione per mostrare gli studenti filtrati
+  function mostraStudenti(studenti) {
+    if (studenti.length === 0) {
+      listaStudenti.innerHTML = '<div class="no-data">Nessuno studente trovato</div>';
+      return;
+    }
+
+    listaStudenti.innerHTML = '';
+
+    studenti.forEach(studente => {
+      const card = document.createElement("div");
+      card.className = "studente";
+      card.style.cursor = "pointer";
+      card.innerHTML = `
+        <div class="studente-info" data-id="${studente.id}">
+          <strong>${studente.nome || 'Nome non disponibile'}</strong>
+          <small>${studente.classe || 'N/A'}</small>
+        </div>
+        <div class="azioni">
+          <span class="token-count">${studente.token || 0}</span>
+          <button class="btn-add" data-id="${studente.id}">+4</button>
+          <button class="btn-remove" data-id="${studente.id}">-1</button>
+        </div>
+      `;
+
+      listaStudenti.appendChild(card);
+    });
+
+    // Event listener per vedere storico studente
+    document.querySelectorAll('.studente-info').forEach(info => {
+      info.addEventListener('click', () => {
+        const studenteId = info.dataset.id;
+        window.location.href = `storico-studente.html?id=${studenteId}`;
+      });
+    });
+
+    // Aggiungi event listener ai bottoni
+    document.querySelectorAll('.btn-add').forEach(btn => {
+      btn.addEventListener('click', () => aggiungiToken(btn.dataset.id, 4));
+    });
+
+    document.querySelectorAll('.btn-remove').forEach(btn => {
+      btn.addEventListener('click', () => rimuoviToken(btn.dataset.id, 1));
+    });
+  }
+
+  // Funzione per filtrare studenti
+  function filtraStudenti() {
+    const searchText = searchInput.value.toLowerCase().trim();
+    const classeSelezionata = classeFilter.value;
+
+    let studentiFiltrati = tuttiStudenti;
+
+    // Filtro per nome
+    if (searchText) {
+      studentiFiltrati = studentiFiltrati.filter(s => 
+        (s.nome || '').toLowerCase().includes(searchText) ||
+        (s.username || '').toLowerCase().includes(searchText)
+      );
+    }
+
+    // Filtro per classe
+    if (classeSelezionata) {
+      studentiFiltrati = studentiFiltrati.filter(s => s.classe === classeSelezionata);
+    }
+
+    mostraStudenti(studentiFiltrati);
+  }
+
+  // Event listeners per filtri
+  searchInput.addEventListener('input', filtraStudenti);
+  classeFilter.addEventListener('change', filtraStudenti);
 
   // Funzione per aggiungere token
   async function aggiungiToken(studenteID, quantita) {
@@ -151,8 +241,12 @@
         timestamp: new Date()
       });
 
-      // Ricarica la lista
-      caricaStudenti();
+      // Aggiorna solo quello studente nella UI
+      const studenteIndex = tuttiStudenti.findIndex(s => s.id === studenteID);
+      if (studenteIndex !== -1) {
+        tuttiStudenti[studenteIndex].token = newToken;
+        filtraStudenti();
+      }
       
       alert(`✅ +${quantita} token aggiunti!`);
 
@@ -192,8 +286,12 @@
         timestamp: new Date()
       });
 
-      // Ricarica la lista
-      caricaStudenti();
+      // Aggiorna solo quello studente nella UI
+      const studenteIndex = tuttiStudenti.findIndex(s => s.id === studenteID);
+      if (studenteIndex !== -1) {
+        tuttiStudenti[studenteIndex].token = newToken;
+        filtraStudenti();
+      }
       
       alert(`✅ -${quantita} token rimosso!`);
 
