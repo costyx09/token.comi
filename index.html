@@ -32,6 +32,9 @@
   </div>
 </div>
 
+<!-- Dark Mode Toggle -->
+<button id="darkModeToggle" class="dark-mode-toggle">🌙</button>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
   import { 
@@ -59,10 +62,12 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // 🔒 PROTEZIONE: Verifica se l'utente è loggato
+  // 🔒 PROTEZIONE: Verifica se l'utente è loggato come studente
   const studenteID = localStorage.getItem("studenteID");
-  if (!studenteID) {
-    alert("⚠️ Devi effettuare il login");
+  const ruoloUtente = localStorage.getItem("ruoloUtente");
+  
+  if (!studenteID || ruoloUtente !== "studente") {
+    alert("⚠️ Questa pagina è solo per studenti");
     window.location.href = "login.html";
   }
 
@@ -214,6 +219,7 @@
     localStorage.removeItem("studenteID");
     localStorage.removeItem("studenteNome");
     localStorage.removeItem("isAdmin");
+    localStorage.removeItem("ruoloUtente");
     window.location.href = "login.html";
   }
 
@@ -226,6 +232,22 @@
   // Carica i dati all'avvio
   caricaToken();
   caricaStorico();
+
+  // Dark Mode Toggle
+  const darkModeToggle = document.getElementById("darkModeToggle");
+  const isDarkMode = localStorage.getItem("darkMode") === "true";
+  
+  if (isDarkMode) {
+    document.body.classList.add("dark-mode");
+    darkModeToggle.textContent = "☀️";
+  }
+
+  darkModeToggle.addEventListener("click", () => {
+    document.body.classList.toggle("dark-mode");
+    const isNowDark = document.body.classList.contains("dark-mode");
+    localStorage.setItem("darkMode", isNowDark);
+    darkModeToggle.textContent = isNowDark ? "☀️" : "🌙";
+  });
 </script>
 
 </body>
