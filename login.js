@@ -27,10 +27,12 @@ const loginBtn = document.getElementById("loginBtn");
 
 /* 🔹 VERIFICA SE GIÀ LOGGATO */
 const studenteLoggato = localStorage.getItem("studenteID");
-const isAdmin = localStorage.getItem("isAdmin");
+const ruoloLoggato = localStorage.getItem("ruoloUtente");
 
-if (studenteLoggato && isAdmin === "true") {
+if (studenteLoggato && ruoloLoggato === "admin") {
   window.location.href = "admin.html";
+} else if (studenteLoggato && ruoloLoggato === "venditore") {
+  window.location.href = "genera-qr.html";
 } else if (studenteLoggato) {
   window.location.href = "index.html";
 }
@@ -82,8 +84,15 @@ loginBtn.addEventListener("click", async () => {
       return;
     }
 
-    if (userType === "studente" && ruolo === "admin") {
-      alert("⚠️ Questo è un account admin. Seleziona 'Admin' per accedere.");
+    if (userType === "venditore" && ruolo !== "venditore") {
+      alert("❌ Non hai i permessi di venditore");
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Accedi";
+      return;
+    }
+
+    if (userType === "studente" && ruolo !== "studente") {
+      alert("⚠️ Questo account non è uno studente. Seleziona il ruolo corretto.");
       loginBtn.disabled = false;
       loginBtn.textContent = "Accedi";
       return;
@@ -92,11 +101,15 @@ loginBtn.addEventListener("click", async () => {
     // Salva i dati in localStorage
     localStorage.setItem("studenteID", userID);
     localStorage.setItem("studenteNome", userData.nome || "Utente");
+    localStorage.setItem("ruoloUtente", ruolo);
     
     if (ruolo === "admin") {
       localStorage.setItem("isAdmin", "true");
       alert("✅ Login admin riuscito!");
       window.location.href = "admin.html";
+    } else if (ruolo === "venditore") {
+      alert("✅ Login venditore riuscito!");
+      window.location.href = "genera-qr.html";
     } else {
       localStorage.setItem("isAdmin", "false");
       alert("✅ Login riuscito!");
