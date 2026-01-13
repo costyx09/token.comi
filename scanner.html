@@ -18,6 +18,33 @@
   <div class="scanner-container">
     <div id="reader"></div>
     
+    <!-- Modal Conferma -->
+    <div id="confirmModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-icon">🛒</div>
+        <h2 id="confirmTitle">Conferma Acquisto</h2>
+        <p id="confirmMessage" class="confirm-message"></p>
+        <div class="confirm-details">
+          <div class="detail-row">
+            <span>Costo:</span>
+            <strong id="confirmCosto">0 token</strong>
+          </div>
+          <div class="detail-row">
+            <span>Saldo attuale:</span>
+            <strong id="confirmSaldoAttuale">0 token</strong>
+          </div>
+          <div class="detail-row highlight">
+            <span>Nuovo saldo:</span>
+            <strong id="confirmNuovoSaldo">0 token</strong>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button id="btnConferma" class="btn-confirm">✅ Conferma</button>
+          <button id="btnAnnulla" class="btn-cancel">❌ Annulla</button>
+        </div>
+      </div>
+    </div>
+    
     <div id="result" class="result-box hidden">
       <div class="result-icon">✅</div>
       <h2 id="resultTitle">Scansione completata!</h2>
@@ -28,6 +55,16 @@
       </div>
     </div>
   </div>
+
+  <!-- Audio per feedback -->
+  <audio id="successSound" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBzaM0fPTgjMGHm7A7+OZUQ0PVqvm7q1aFApCm+DyvWwhCDOMz/PWhzQHH2698N6WTQwPU6vl7q1ZFQlBnN/yuW4fCDSLzfPUgzIGIG/A7+OVTwwOUqrk7axYFQlBnN7xu24fCDGLzfPTgzIGIG6/7+OUTQ0OUqnj7KtYFAo+nN7xt24gCDKKzfPSgjEGIG6+7uSTTA0PUank66pXEwo9m93wtW0fCDKKzPPSgTAFIW2+7uOSTA0OUKni66lWEwk8mtzus2weCC+IyvLPfS4EH2y77d+QSgsLTqfd6qVTEAc5ltrtrlgVCDODx+zHcSQFKXG57NyLPgcVZrDn4ptXEwg7ndnqpVIQBjiQ1ezEayUGLXfB6tiMQAoUY67k4JdUEAc6mtjpn1ARBjaOze7AZiEGMXu96NOMQQsVY67j3ZRSEAg7mtfnm08RBjaOze6+ZB8GM3q96NKLQAsUYq3i3JFREAc6mdfnmU4RBTaMze29YyAHNHm86M+JQAwTYavh2pBRDwc5mNbmlkwQBTWLze26YR8HNHi76M2IQAwSYKvg2Y9QDgc4ltXllUoQBDSKzO23YB4HNHe56MuHPgsQX6rf2I1PDgY3lNTjk0kPBDKJy+y1Xh0GNHa56MqGPgoQXqne14xODQY3k9PikkgPAzGIyuy0XBsGNXW358mFPQkPXafe1otNDAU3ktLhkUcOAzCHyeuzWhsGNnS35siEPAkOXKbb1YlLCwQ2j9DgkEYOAi+Gx+qxWBoFNnK15saEOwgNXKba1IlLCgM1js/fjkUOAi6Fxumv">
+    </source>
+  </audio>
+  <audio id="errorSound" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAgICAgICAgICAgICAgICAfn59fHt6enl4d3Z1dHNyb21qaWdlY2BcWFRQS0Y/Ojcu">
+    </source>
+  </audio>
 </div>
 
 <script type="module">
@@ -56,15 +93,25 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // Verifica login
+  // Verifica login studente
   const studenteID = localStorage.getItem("studenteID");
-  if (!studenteID) {
-    alert("⚠️ Devi effettuare il login");
+  const ruoloUtente = localStorage.getItem("ruoloUtente");
+  
+  if (!studenteID || ruoloUtente !== "studente") {
+    alert("⚠️ Solo gli studenti possono scansionare QR codes");
     window.location.href = "login.html";
   }
 
   let scannerAttivo = true;
   let html5QrCode;
+  let qrDataTemp = null;
+  let qrInfoTemp = null;
+
+  const confirmModal = document.getElementById("confirmModal");
+  const btnConferma = document.getElementById("btnConferma");
+  const btnAnnulla = document.getElementById("btnAnnulla");
+  const successSound = document.getElementById("successSound");
+  const errorSound = document.getElementById("errorSound");
 
   // Inizializza lo scanner
   function inizializzaScanner() {
@@ -118,6 +165,7 @@
       const qrSnap = await getDocs(q);
 
       if (qrSnap.empty) {
+        errorSound.play();
         mostraRisultato("❌", "QR Code non valido", "Questo QR non è registrato nel sistema.", false);
         return;
       }
@@ -131,6 +179,7 @@
       const studenteSnap = await getDoc(studenteRef);
 
       if (!studenteSnap.exists()) {
+        errorSound.play();
         mostraRisultato("❌", "Errore", "Studente non trovato.", false);
         return;
       }
@@ -138,12 +187,51 @@
       const tokenAttuali = studenteSnap.data().token || 0;
 
       if (tokenAttuali < costoToken) {
+        errorSound.play();
         mostraRisultato("❌", "Token insufficienti", `Servizio: ${descrizione}\nCosto: ${costoToken} token\nDisponibili: ${tokenAttuali} token`, false);
         return;
       }
 
-      // Decrementa i token
+      // Salva dati temporanei e mostra conferma
+      qrDataTemp = qrData;
+      qrInfoTemp = {
+        descrizione,
+        costoToken,
+        tokenAttuali,
+        studenteRef
+      };
+
+      mostraConferma(descrizione, costoToken, tokenAttuali);
+
+    } catch (error) {
+      console.error("Errore processamento QR:", error);
+      errorSound.play();
+      mostraRisultato("❌", "Errore", "Si è verificato un errore. Riprova.", false);
+    }
+  }
+
+  // Mostra modal conferma
+  function mostraConferma(descrizione, costo, saldoAttuale) {
+    const nuovoSaldo = saldoAttuale - costo;
+
+    document.getElementById("confirmMessage").textContent = descrizione;
+    document.getElementById("confirmCosto").textContent = `${costo} token`;
+    document.getElementById("confirmSaldoAttuale").textContent = `${saldoAttuale} token`;
+    document.getElementById("confirmNuovoSaldo").textContent = `${nuovoSaldo} token`;
+
+    confirmModal.classList.remove("hidden");
+  }
+
+  // Conferma acquisto
+  btnConferma.addEventListener("click", async () => {
+    btnConferma.disabled = true;
+    btnConferma.textContent = "⏳ Elaborazione...";
+
+    try {
+      const { descrizione, costoToken, tokenAttuali, studenteRef } = qrInfoTemp;
       const nuoviToken = tokenAttuali - costoToken;
+
+      // Decrementa i token
       await updateDoc(studenteRef, { token: nuoviToken });
 
       // Registra la transazione
@@ -152,22 +240,41 @@
         descrizione: descrizione,
         variazione: -costoToken,
         timestamp: new Date(),
-        qrcode: qrData
+        qrcode: qrDataTemp
       });
 
-      // Mostra successo
+      // Nascondi modal e mostra successo
+      confirmModal.classList.add("hidden");
+      successSound.play();
+      
       mostraRisultato(
         "✅", 
         "Acquisto completato!", 
-        `${descrizione}\n-${costoToken} token\nSaldo: ${nuoviToken} token`,
+        `${descrizione}\n-${costoToken} token\nNuovo saldo: ${nuoviToken} token`,
         true
       );
 
     } catch (error) {
-      console.error("Errore processamento QR:", error);
-      mostraRisultato("❌", "Errore", "Si è verificato un errore. Riprova.", false);
+      console.error("Errore completamento acquisto:", error);
+      confirmModal.classList.add("hidden");
+      errorSound.play();
+      mostraRisultato("❌", "Errore", "Errore durante l'acquisto. Riprova.", false);
     }
-  }
+  });
+
+  // Annulla acquisto
+  btnAnnulla.addEventListener("click", () => {
+    confirmModal.classList.add("hidden");
+    scannerAttivo = true;
+    
+    // Riavvia scanner
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+      onScanSuccess,
+      onScanError
+    );
+  });
 
   // Mostra risultato
   function mostraRisultato(icon, title, message, success) {
