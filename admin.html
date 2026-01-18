@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin</title>
   <link rel="stylesheet" href="style.css">
+  <script src="session-manager.js"></script>
 </head>
 <body>
 
@@ -17,6 +18,9 @@
   <div class="admin-actions">
     <button onclick="window.location.href='genera-qr.html'" class="btn-qr">
       📱 Genera QR Code
+    </button>
+    <button onclick="window.location.href='crea-account.html'" class="btn-qr" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);">
+      👥 Crea Account
     </button>
     <button onclick="window.location.href='statistiche.html'" class="btn-stats">
       📊 Statistiche
@@ -63,6 +67,11 @@
   // 🔒 PROTEZIONE: Verifica se l'admin è loggato
   const adminID = localStorage.getItem("studenteID");
   const isAdmin = localStorage.getItem("isAdmin");
+  
+  // Verifica sessione valida
+  if (typeof window.verificaSessione === 'function' && !window.verificaSessione()) {
+    window.location.href = "login.html";
+  }
   
   if (!adminID || isAdmin !== "true") {
     alert("⚠️ Accesso negato. Solo per admin.");
