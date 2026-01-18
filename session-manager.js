@@ -1,5 +1,5 @@
 // SESSION MANAGER - Gestione scadenza sessione
-// Aggiungi questo script a TUTTE le pagine protette
+// Aggiungi questo script a TUTTE le pagine protette (NON alla pagina login!)
 
 const SESSION_DURATION = 5 * 60 * 60 * 1000; // 5 ore in millisecondi
 
@@ -8,16 +8,18 @@ function verificaSessione() {
   const loginTime = localStorage.getItem("loginTime");
   const studenteID = localStorage.getItem("studenteID");
 
-  // Se non c'è login time, è una vecchia sessione
-  if (!loginTime && studenteID) {
-    console.log("⚠️ Sessione senza timestamp - logout forzato");
-    logoutScaduto();
+  // Se non c'è studenteID, non è loggato (normale per login page)
+  if (!studenteID) {
     return false;
   }
 
-  // Se non c'è studenteID, non è loggato
-  if (!studenteID) {
-    return false;
+  // Se non c'è login time, è una vecchia sessione (prima dell'update)
+  // Accettiamo per retrocompatibilità ma settiamo il timestamp ora
+  if (!loginTime && studenteID) {
+    console.log("⚠️ Sessione senza timestamp - aggiungo timestamp corrente");
+    localStorage.setItem("loginTime", new Date().getTime().toString());
+    localStorage.setItem("lastActivity", new Date().getTime().toString());
+    return true; // Permetti accesso e salva timestamp
   }
 
   const now = new Date().getTime();
