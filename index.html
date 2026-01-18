@@ -67,9 +67,12 @@
   const studenteID = localStorage.getItem("studenteID");
   const ruoloUtente = localStorage.getItem("ruoloUtente");
   
-  // Verifica sessione valida
-  if (typeof window.verificaSessione === 'function' && !window.verificaSessione()) {
-    window.location.href = "login.html";
+  // Verifica sessione valida (se session-manager è caricato)
+  if (typeof window.verificaSessione === 'function') {
+    // Se c'è studenteID ma verificaSessione ritorna false, fa logout
+    if (studenteID && !window.verificaSessione()) {
+      // verificaSessione gestisce già il logout
+    }
   }
   
   if (!studenteID || ruoloUtente !== "studente") {
