@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Studente</title>
   <link rel="stylesheet" href="style.css">
+  <script src="session-manager.js"></script>
 </head>
 <body>
 
@@ -65,6 +66,11 @@
   // 🔒 PROTEZIONE: Verifica se l'utente è loggato come studente
   const studenteID = localStorage.getItem("studenteID");
   const ruoloUtente = localStorage.getItem("ruoloUtente");
+  
+  // Verifica sessione valida
+  if (typeof window.verificaSessione === 'function' && !window.verificaSessione()) {
+    window.location.href = "login.html";
+  }
   
   if (!studenteID || ruoloUtente !== "studente") {
     alert("⚠️ Questa pagina è solo per studenti");
