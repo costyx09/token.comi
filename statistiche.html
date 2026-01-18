@@ -365,23 +365,63 @@
             borderWidth: 3,
             fill: true,
             tension: 0.4,
-            pointRadius: 5,
-            pointHoverRadius: 7
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#3b82f6',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
           }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: {
               display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#f1f5f9',
+              bodyColor: '#f1f5f9',
+              padding: 12,
+              borderColor: '#3b82f6',
+              borderWidth: 1,
+              displayColors: false,
+              callbacks: {
+                title: function(context) {
+                  return 'Giorno: ' + context[0].label;
+                },
+                label: function(context) {
+                  return 'Transazioni: ' + context.parsed.y;
+                }
+              }
             }
           },
           scales: {
             y: {
               beginAtZero: true,
               ticks: {
-                stepSize: 1
+                stepSize: 1,
+                color: '#64748b',
+                font: {
+                  size: 12,
+                  weight: 'bold'
+                }
+              },
+              grid: {
+                color: 'rgba(100, 116, 139, 0.1)'
+              }
+            },
+            x: {
+              ticks: {
+                color: '#64748b',
+                font: {
+                  size: 12,
+                  weight: 'bold'
+                }
+              },
+              grid: {
+                display: false
               }
             }
           }
@@ -424,15 +464,57 @@
           datasets: [{
             data: topServizi.map(s => s[1]),
             backgroundColor: colors,
-            borderWidth: 0
+            borderWidth: 0,
+            hoverOffset: 10
           }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: {
-              position: 'bottom'
+              position: 'bottom',
+              labels: {
+                padding: 15,
+                font: {
+                  size: 12,
+                  weight: 'bold'
+                },
+                color: '#1e293b',
+                generateLabels: function(chart) {
+                  const data = chart.data;
+                  if (data.labels.length && data.datasets.length) {
+                    return data.labels.map((label, i) => {
+                      const value = data.datasets[0].data[i];
+                      return {
+                        text: `${label}: ${value} token`,
+                        fillStyle: data.datasets[0].backgroundColor[i],
+                        hidden: false,
+                        index: i
+                      };
+                    });
+                  }
+                  return [];
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleColor: '#f1f5f9',
+              bodyColor: '#f1f5f9',
+              padding: 12,
+              borderColor: '#3b82f6',
+              borderWidth: 1,
+              displayColors: true,
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.parsed || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / total) * 100).toFixed(1);
+                  return `${label}: ${value} token (${percentage}%)`;
+                }
+              }
             }
           }
         }
